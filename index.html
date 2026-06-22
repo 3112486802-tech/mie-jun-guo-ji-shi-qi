@@ -4,148 +4,154 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>灭菌锅时间计算器</title>
-<script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
-<script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
-<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
 <style>
   * { box-sizing: border-box; margin: 0; padding: 0; }
-  body { background: #0f0f0f; }
+  body {
+    background: #0f0f0f;
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: 'JetBrains Mono', 'SF Mono', 'Fira Code', monospace;
+    color: #e0e0e0;
+  }
   @keyframes fadeSlide {
     from { opacity: 0; transform: translateY(8px); }
     to { opacity: 1; transform: translateY(0); }
   }
+  .wrap { width: 400px; padding: 32px; }
+  h1 {
+    font-size: 13px; font-weight: 400; letter-spacing: 6px;
+    text-transform: uppercase; color: #555; margin-bottom: 36px; text-align: center;
+  }
+  .clock { display: flex; align-items: center; justify-content: center; margin-bottom: 28px; }
+  .box {
+    width: 72px; height: 88px; background: #161616; border-radius: 12px;
+    display: flex; align-items: center; justify-content: center; border: 1px solid #222;
+  }
+  .box span { font-size: 36px; font-weight: 600; color: #fff; letter-spacing: 4px; }
+  .colon { font-size: 40px; font-weight: 700; color: #333; margin: 0 14px; user-select: none; }
+  .hint { text-align: center; font-size: 11px; color: #333; margin: 0 0 20px; letter-spacing: 1px; }
+  .btn-wrap { text-align: center; margin-bottom: 8px; }
+  button {
+    background: #4a9eff; border: none; border-radius: 10px; padding: 12px 52px;
+    font-size: 14px; color: #fff; font-family: inherit; cursor: pointer;
+    font-weight: 600; letter-spacing: 2px; transition: background 0.15s, transform 0.05s;
+  }
+  button:hover { background: #3a8eef; }
+  button:active { transform: scale(0.97); }
+  .row {
+    display: flex; align-items: center; justify-content: center; padding: 15px 0;
+    animation: fadeSlide 0.35s ease both;
+  }
+  .row:not(:last-child) { border-bottom: 1px solid rgba(255,255,255,0.04); }
+  .row .left { font-size: 26px; font-weight: 500; color: #fff; width: 95px; text-align: right; letter-spacing: 3px; }
+  .row .dash { margin: 0 18px; color: #2a2a2a; font-size: 16px; }
+  .row .right { font-size: 26px; font-weight: 500; color: #4a9eff; width: 95px; text-align: left; letter-spacing: 3px; }
+  .note {
+    margin-top: 24px; padding: 12px 14px; background: #131313;
+    border-radius: 8px; font-size: 11px; color: #3a3a3a; line-height: 1.9;
+  }
+  .note p { margin: 0; }
 </style>
 </head>
 <body>
-<div id="root"></div>
-<script type="text/babel">
-const { useState, useCallback, useRef } = React;
+<div class="wrap">
+  <h1>时间计算器</h1>
+  <div class="clock">
+    <div class="box"><span id="display-hour">09</span></div>
+    <span class="colon">:</span>
+    <div class="box"><span id="display-min">30</span></div>
+  </div>
+  <p class="hint">小时 9→10→11 自动循环 · 分钟 25~45 自动随机</p>
+  <div class="btn-wrap">
+    <button id="calc-btn">计算</button>
+  </div>
+  <div id="result"></div>
+</div>
 
-const rand = (min, max) => Math.floor(Math.random() * (max - min + 1)) + min;
-const hourCycle = [9, 10, 11];
-const addMinutes = (h, m, delta) => {
-  const total = h * 60 + m + delta;
+<script>
+"use strict";
+
+var rand = function (min, max) { return Math.floor(Math.random() * (max - min + 1)) + min; };
+var hourCycle = [9, 10, 11];
+var addMinutes = function (h, m, delta) {
+  var total = h * 60 + m + delta;
   return [Math.floor(total / 60) % 24, total % 60];
 };
-const fmt = (h, m) => `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
+var pad = function (n) { return String(n).padStart(2, "0"); };
+var fmt = function (h, m) { return pad(h) + ":" + pad(m); };
 
 function generate(startH, startM) {
-  const rows = [];
-  let lh = startH, lm = startM;
-  for (let i = 0; i < 4; i++) {
-    const gap1 = rand(120, 130);
-    const [rh, rm] = addMinutes(lh, lm, gap1);
+  var rows = [];
+  var lh = startH, lm = startM;
+  for (var i = 0; i < 4; i++) {
+    var gap1 = rand(120, 130);
+    var r = addMinutes(lh, lm, gap1);
+    var rh = r[0], rm = r[1];
     rows.push({ left: fmt(lh, lm), right: fmt(rh, rm) });
     if (i < 3) {
-      const gap2 = rand(20, 35);
-      [lh, lm] = addMinutes(rh, rm, gap2);
+      var gap2 = rand(20, 35);
+      var next = addMinutes(rh, rm, gap2);
+      lh = next[0]; lm = next[1];
     }
   }
   return rows;
 }
 
-function TimeCalculator() {
-  const nextIdx = useRef(0);
-  const [displayHour, setDisplayHour] = useState(hourCycle[0]);
-  const [displayMin, setDisplayMin] = useState(() => rand(25, 45));
-  const [rows, setRows] = useState(null);
-  const [key, setKey] = useState(0);
+var nextIdx = 0;
+var displayHourEl = document.getElementById("display-hour");
+var displayMinEl = document.getElementById("display-min");
+var resultEl = document.getElementById("result");
 
-  const calc = useCallback(() => {
-    const curHour = hourCycle[nextIdx.current];
-    const curMin = rand(25, 45);
-    setDisplayHour(curHour);
-    setDisplayMin(curMin);
-    setRows(generate(curHour, curMin));
-    setKey((k) => k + 1);
-    nextIdx.current = (nextIdx.current + 1) % hourCycle.length;
-  }, []);
+function calc() {
+  var curHour = hourCycle[nextIdx];
+  var curMin = rand(25, 45);
+  displayHourEl.textContent = pad(curHour);
+  displayMinEl.textContent = pad(curMin);
 
-  return (
-    <div style={{
-      minHeight: "100vh", background: "#0f0f0f", display: "flex",
-      alignItems: "center", justifyContent: "center",
-      fontFamily: "'JetBrains Mono', 'SF Mono', 'Fira Code', monospace", color: "#e0e0e0",
-    }}>
-      <div style={{ width: 400, padding: 32 }}>
-        <h1 style={{
-          fontSize: 13, fontWeight: 400, letterSpacing: 6, textTransform: "uppercase",
-          color: "#555", marginBottom: 36, textAlign: "center",
-        }}>时间计算器</h1>
+  var rows = generate(curHour, curMin);
 
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "center", marginBottom: 28 }}>
-          <div style={{
-            width: 72, height: 88, background: "#161616", borderRadius: 12,
-            display: "flex", alignItems: "center", justifyContent: "center", border: "1px solid #222",
-          }}>
-            <span style={{ fontSize: 36, fontWeight: 600, color: "#fff", letterSpacing: 4 }}>
-              {String(displayHour).padStart(2, "0")}
-            </span>
-          </div>
-          <span style={{ fontSize: 40, fontWeight: 700, color: "#333", margin: "0 14px", userSelect: "none" }}>:</span>
-          <div style={{
-            width: 72, height: 88, background: "#161616", borderRadius: 12,
-            display: "flex", alignItems: "center", justifyContent: "center", border: "1px solid #222",
-          }}>
-            <span style={{ fontSize: 36, fontWeight: 600, color: "#fff", letterSpacing: 4 }}>
-              {String(displayMin).padStart(2, "0")}
-            </span>
-          </div>
-        </div>
+  resultEl.innerHTML = "";
+  var container = document.createElement("div");
+  container.style.marginTop = "30px";
 
-        <p style={{ textAlign: "center", fontSize: 11, color: "#333", margin: "0 0 20px", letterSpacing: 1 }}>
-          小时 9→10→11 自动循环 · 分钟 25~45 自动随机
-        </p>
+  rows.forEach(function (r, i) {
+    var row = document.createElement("div");
+    row.className = "row";
+    row.style.animationDelay = (i * 0.07) + "s";
 
-        <div style={{ textAlign: "center", marginBottom: 8 }}>
-          <button
-            onClick={calc}
-            style={{
-              background: "#4a9eff", border: "none", borderRadius: 10, padding: "12px 52px",
-              fontSize: 14, color: "#fff", fontFamily: "inherit", cursor: "pointer",
-              fontWeight: 600, letterSpacing: 2,
-            }}
-            onMouseEnter={(e) => (e.target.style.background = "#3a8eef")}
-            onMouseLeave={(e) => (e.target.style.background = "#4a9eff")}
-            onMouseDown={(e) => (e.target.style.transform = "scale(0.97)")}
-            onMouseUp={(e) => (e.target.style.transform = "scale(1)")}
-          >计算</button>
-        </div>
+    var left = document.createElement("span");
+    left.className = "left";
+    left.textContent = r.left;
 
-        {rows && (
-          <div key={key} style={{ marginTop: 30 }}>
-            {rows.map((r, i) => (
-              <div key={i} style={{
-                display: "flex", alignItems: "center", justifyContent: "center",
-                padding: "15px 0",
-                borderBottom: i < 3 ? "1px solid rgba(255,255,255,0.04)" : "none",
-                animation: `fadeSlide 0.35s ease ${i * 0.07}s both`,
-              }}>
-                <span style={{ fontSize: 26, fontWeight: 500, color: "#fff", width: 95, textAlign: "right", letterSpacing: 3 }}>
-                  {r.left}
-                </span>
-                <span style={{ margin: "0 18px", color: "#2a2a2a", fontSize: 16 }}>—</span>
-                <span style={{ fontSize: 26, fontWeight: 500, color: "#4a9eff", width: 95, textAlign: "left", letterSpacing: 3 }}>
-                  {r.right}
-                </span>
-              </div>
-            ))}
-            <div style={{
-              marginTop: 24, padding: "12px 14px", background: "#131313",
-              borderRadius: 8, fontSize: 11, color: "#3a3a3a", lineHeight: 1.9,
-            }}>
-              <p style={{ margin: 0 }}>起始: 小时 9→10→11 循环, 分钟 25~45 随机</p>
-              <p style={{ margin: 0 }}>右列 = 左列 + 随机(2h00m ~ 2h10m)</p>
-              <p style={{ margin: 0 }}>下行左列 = 上行右列 + 随机(20m ~ 35m)</p>
-            </div>
-          </div>
-        )}
-      </div>
-    </div>
-  );
+    var dash = document.createElement("span");
+    dash.className = "dash";
+    dash.textContent = "—";
+
+    var right = document.createElement("span");
+    right.className = "right";
+    right.textContent = r.right;
+
+    row.appendChild(left);
+    row.appendChild(dash);
+    row.appendChild(right);
+    container.appendChild(row);
+  });
+
+  var note = document.createElement("div");
+  note.className = "note";
+  note.innerHTML =
+    "<p>起始: 小时 9→10→11 循环, 分钟 25~45 随机</p>" +
+    "<p>右列 = 左列 + 随机(2h00m ~ 2h10m)</p>" +
+    "<p>下行左列 = 上行右列 + 随机(20m ~ 35m)</p>";
+  container.appendChild(note);
+
+  resultEl.appendChild(container);
+  nextIdx = (nextIdx + 1) % hourCycle.length;
 }
 
-ReactDOM.createRoot(document.getElementById("root")).render(<TimeCalculator />);
+document.getElementById("calc-btn").addEventListener("click", calc);
 </script>
 </body>
 </html>
